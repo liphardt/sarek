@@ -51,6 +51,8 @@ workflow BAM_VARIANT_CALLING_GERMLINE_ALL {
     sentieon_dnascope_emit_mode       // channel: [mandatory] value channel with string
     sentieon_dnascope_pcr_indel_model // channel: [mandatory] value channel with string
     sentieon_dnascope_model           // channel: [mandatory] value channel with string
+    joint_intervals                   // channel: [mandatory] list of unzipped interval bed files exclusively for joint genotyping
+    use_joint_intervals               // boolean just to make the logic work later
 
     main:
     //TODO: Temporary until the if's can be removed and printing to terminal is prevented with "when" in the modules.config
@@ -169,7 +171,11 @@ workflow BAM_VARIANT_CALLING_GERMLINE_ALL {
                 known_indels_vqsr,
                 known_sites_snps,
                 known_sites_snps_tbi,
-                known_snps_vqsr)
+                known_snps_vqsr,
+                BAM_VARIANT_CALLING_HAPLOTYPECALLER.out.vcf,
+                BAM_VARIANT_CALLING_HAPLOTYPECALLER.out.tbi,
+                joint_intervals,
+                use_joint_intervals)
 
             vcf_haplotypecaller = BAM_JOINT_CALLING_GERMLINE_GATK.out.genotype_vcf
             tbi_haplotypecaller = BAM_JOINT_CALLING_GERMLINE_GATK.out.genotype_index

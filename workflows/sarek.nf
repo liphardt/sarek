@@ -124,6 +124,8 @@ workflow SAREK {
     vep_genome
     vep_species
     snpsift_db // channel: [[databases], [tbis], [vardbs], [fields], [prefixes]]
+    joint_intervals
+    use_joint_intervals
 
     main:
     // To gather all QC reports for MultiQC
@@ -424,6 +426,8 @@ workflow SAREK {
             params.sentieon_dnascope_emit_mode,
             params.sentieon_dnascope_pcr_indel_model,
             sentieon_dnascope_model,
+            joint_intervals,
+            use_joint_intervals,
         )
 
         // TUMOR ONLY VARIANT CALLING

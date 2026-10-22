@@ -29,12 +29,32 @@ workflow BAM_JOINT_CALLING_GERMLINE_GATK {
     resource_snps_vcf
     resource_snps_tbi
     known_snps_vqsr
+    vcf
+    tbi
+    joint_intervals
+    use_joint_intervals
 
     main:
 
     // Map input for GenomicsDBImport
     // Rename based on num_intervals, group all samples by their interval_name/interval_file and restructure for channel
     // Group by [0, 3] to avoid a list of metas and make sure that any intervals
+    // Modified to decouple halpotypecaller intervals from genotypegvcfs intervals if using joint_intervals
+    if (use_joint_intervals) {
+        cohort_gvcfs = vcf
+        .join(tbi, failOnDuplicate: true, failOnMismatch: true)
+        .map { meta, vcf, tbi -> [ vcf, tbi ]}
+        .collect(flat: false)
+
+        gendb_input = joint_intervals
+        .combine(cohort_gvcfs)
+        .map { interval, cohort_pairs -> 
+            def gvcfs = cohort_pairs.collect { it[0] }
+            def tbis = cohort_pairs.collect { it[1] }
+            def meta = [ id:'joint_variant_calling', intervals_name:interval.baseName ]
+            [ meta, gvcfs, tbis, interval, [], [] ]
+        }
+    } else {
     gendb_input = input
         .map{ meta, gvcf, tbi, intervals -> [ [ id:'joint_variant_calling', intervals_name:intervals.baseName, num_intervals:meta.num_intervals ], gvcf, tbi, intervals ] }
         .groupTuple(by:3) //join on interval file
@@ -42,7 +62,7 @@ workflow BAM_JOINT_CALLING_GERMLINE_GATK {
             // meta is now a list of [meta1, meta2] but they are all the same. So take the first element.
             [ meta_list[0], gvcf, tbi, intervals, [], [] ]
         }
-
+    }
     // Convert all sample vcfs into a genomicsdb workspace using genomicsdbimport
     GATK4_GENOMICSDBIMPORT(gendb_input, false, false, false)
 
@@ -54,7 +74,11 @@ workflow BAM_JOINT_CALLING_GERMLINE_GATK {
     GATK4_GENOTYPEGVCFS(genotype_input, fasta, fai, dict, dbsnp.map{ dbsnp_ -> [ [:], dbsnp_ ] }, dbsnp_tbi.map{ dbsnp_tbi_ -> [ [:], dbsnp_tbi_ ] })
 
     BCFTOOLS_SORT(GATK4_GENOTYPEGVCFS.out.vcf)
-    gvcf_to_merge = BCFTOOLS_SORT.out.vcf.map{ meta, vcf -> [ meta.subMap('num_intervals') + [ id:'joint_variant_calling', patient:'all_samples', variantcaller:'haplotypecaller' ], vcf ]}.groupTuple()
+    gvcf_to_merge = BCFTOOLS_SORT.out.vcf.map{ meta, vcf -> 
+        def base_meta = [ id:'joint_variant_calling', patient:'all_samples', variantcaller:'haplotypecaller' ]
+        def new_meta = use_joint_intervals ? base_meta : meta.subMap('num_intervals') + base_meta
+        [ new_meta, vcf ]
+    }.groupTuple()
 
     // Merge scatter/gather vcfs & index
     // Rework meta for variantscalled.csv and annotation tools

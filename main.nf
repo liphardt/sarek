@@ -267,6 +267,10 @@ workflow NFCORE_SAREK {
         ch_snpsift_db = PREPARE_SNPSIFT_DATABASES.out.db_tuple
     }
 
+    // Set up intervals for joint genotyping.
+    joint_intervals = params.joint_intervals ? channel.fromPath(params.joint_intervals) : channel.value([])
+    use_joint_intervals = params.joint_intervals ? true : false
+    
     //
     // WORKFLOW: Run pipeline
     //
@@ -333,6 +337,8 @@ workflow NFCORE_SAREK {
         params.vep_genome,
         params.vep_species,
         ch_snpsift_db,
+        joint_intervals,
+        use_joint_intervals
     )
 
     emit:

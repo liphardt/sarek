@@ -43,14 +43,13 @@ workflow BAM_JOINT_CALLING_GERMLINE_GATK {
     if (use_joint_intervals) {
         cohort_gvcfs = vcf
         .join(tbi, failOnDuplicate: true, failOnMismatch: true)
-        .map { meta, vcf, tbi -> [ vcf, tbi ]}
+        .map { _meta, vcf_, tbi_ -> [ vcf_, tbi_ ]}
         .collect(flat: false)
+        .map { pairs -> [ pairs.collect { it[0] }, pairs.collect { it[1] } ] }
 
         gendb_input = joint_intervals
         .combine(cohort_gvcfs)
         .map { interval, cohort_pairs -> 
-            def gvcfs = cohort_pairs.collect { it[0] }
-            def tbis = cohort_pairs.collect { it[1] }
             def meta = [ id:'joint_variant_calling', intervals_name:interval.baseName ]
             [ meta, gvcfs, tbis, interval, [], [] ]
         }

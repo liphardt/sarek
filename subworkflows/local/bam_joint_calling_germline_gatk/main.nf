@@ -49,7 +49,7 @@ workflow BAM_JOINT_CALLING_GERMLINE_GATK {
 
         gendb_input = joint_intervals
         .combine(cohort_gvcfs)
-        .map { interval, cohort_pairs -> 
+        .map { interval, gvcfs, tbis -> 
             def meta = [ id:'joint_variant_calling', intervals_name:interval.baseName ]
             [ meta, gvcfs, tbis, interval, [], [] ]
         }
